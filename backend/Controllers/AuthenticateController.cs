@@ -193,6 +193,74 @@ public class AuthenticateController : ControllerBase
         });
     }
 
+    [HttpPost("login-request-otp")]
+    public async Task<IActionResult> LoginRequestOtp([FromBody] LoginModel model)
+    {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+
+        var user = await _userManager.FindByNameAsync(model.Username);
+        if (user == null || !await _userManager.CheckPasswordAsync(user, model.Password))
+            return Unauthorized(new { status = false, message = "Tên đăng nhập hoặc mật khẩu không chính xác" });
+
+        var email = user.Email ?? $"{user.UserName}@workpulse.vn";
+        var dummyReg = new RegistrationModel { Email = email, Username = user.UserName ?? "" };
+        var otpCode = _otpService.GenerateOtp(dummyReg);
+
+        if (!string.IsNullOrEmpty(user.Email))
+        {
+            await _emailService.SendOtpEmailAsync(user.Email, user.UserName ?? "Người dùng", otpCode);
+        }
+
+        var isDev = string.IsNullOrWhiteSpace(_configuration.GetSection("EmailSettings")["AppPassword"]);
+
+        return Ok(new
+        {
+            status = true,
+            message = $"Đã gửi mã OTP xác thực đăng nhập đến email {email}.",
+            email = email,
+            devOtp = isDev ? otpCode : null
+        });
+    }
+
+    [HttpPost("login-verify-otp")]
+    public async Task<IActionResult> LoginVerifyOtp([FromBody] VerifyOtpModel model)
+    {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+
+        var verifyResult = _otpService.VerifyOtp(model.Email, model.Otp);
+        if (!verifyResult.Success)
+        {
+            return BadRequest(new { status = false, message = verifyResult.Message });
+        }
+
+        var user = await _userManager.FindByEmailAsync(model.Email) ?? await _userManager.FindByNameAsync(model.Email);
+        if (user == null) return NotFound(new { status = false, message = "Không tìm thấy người dùng" });
+
+        var userRoles = await _userManager.GetRolesAsync(user);
+        var authClaims = new List<Claim>
+        {
+            new Claim(ClaimTypes.Name, user.UserName ?? string.Empty),
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+        };
+
+        foreach (var role in userRoles)
+        {
+            authClaims.Add(new Claim(ClaimTypes.Role, role));
+        }
+
+        var token = GenerateToken(authClaims);
+        var primaryRole = userRoles.Contains("Admin") ? "Admin" : (userRoles.FirstOrDefault() ?? "User");
+
+        return Ok(new
+        {
+            status = true,
+            message = "Đăng nhập và xác thực OTP thành công!",
+            token = token,
+            role = primaryRole,
+            username = user.UserName
+        });
+    }
+
     private string GenerateToken(IEnumerable<Claim> claims)
     {
         var jwtSettings = _configuration.GetSection("JWTKey");

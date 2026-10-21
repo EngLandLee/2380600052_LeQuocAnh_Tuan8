@@ -45,3 +45,11 @@ public class CreateRoomDto
     public string? Description { get; set; }
     public string? RoomCode { get; set; }
 }
+
+public class RegisterFaceDto
+{
+    public string? Username { get; set; }
+    public string? PhotoBase64 { get; set; }
+    public string? FaceAngleSummary { get; set; } = "3D Scan: Front, Left, Right, Smile";
+    public string? DeviceInfo { get; set; }
+}

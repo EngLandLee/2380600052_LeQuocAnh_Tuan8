@@ -17,6 +17,12 @@ public class User : IdentityUser
 
     public string? AvatarUrl { get; set; }
 
+    public bool IsFaceRegistered { get; set; } = false;
+
+    public DateTime? FaceRegisteredAt { get; set; }
+
+    public string? FaceData { get; set; }
+
     [JsonIgnore]
     public ICollection<AttendanceRecord> AttendanceRecords { get; set; } = new List<AttendanceRecord>();
 }

@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'api_client.dart';
 import '../models/attendance_record.dart';
+import '../models/citizen_card_info.dart';
 import '../models/energy_analytics.dart';
+import '../utils/auth_helper.dart';
 
 class AttendanceService {
   final ApiClient _client;
@@ -186,6 +188,22 @@ class AttendanceService {
     }
   }
 
+  /// Trích xuất toàn bộ thông tin cá nhân từ con chip CCCD (eKYC Reader)
+  Future<CitizenCardInfo?> readCccdInfo(String nfcCardId) async {
+    try {
+      final response = await _client.post('attendance/read-cccd-info', {
+        'nfcCardId': nfcCardId,
+      });
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['data'] != null) {
+          return CitizenCardInfo.fromJson(data['data'] as Map<String, dynamic>);
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
   /// Nhân viên tự liên kết thẻ CCCD của mình lúc mới vào công ty (CCCD Onboarding)
   Future<Map<String, dynamic>> linkMyCccd(String nfcCardId) async {
     try {
@@ -199,6 +217,47 @@ class AttendanceService {
       };
     } catch (e) {
       return {'success': false, 'message': 'Lỗi kết nối: $e'};
+    }
+  }
+
+  /// Đăng ký toàn bộ góc mặt 3D cho nhân viên mới (Face Enrollment)
+  Future<Map<String, dynamic>> registerFace({
+    required String photoBase64,
+    String? faceAngleSummary,
+    String? username,
+  }) async {
+    try {
+      final uname = username ?? await AuthHelper.getUsername();
+      // Giới hạn kích thước payload ảnh Base64 nếu quá lớn để tránh nghẽn mạng
+      final safePhoto = photoBase64.length > 50000 ? photoBase64.substring(0, 50000) : photoBase64;
+      final response = await _client.post('attendance/register-face', {
+        'username': uname,
+        'photoBase64': safePhoto,
+        'faceAngleSummary': faceAngleSummary ?? '3D Face Scanned: Front, Left, Right, Smile',
+        'deviceInfo': 'WorkPulse 3D Biometric Camera',
+      });
+
+      if (response.statusCode == 200) {
+        if (response.body.isNotEmpty) {
+          final data = jsonDecode(response.body);
+          return {
+            'success': true,
+            'message': data['message'] ?? 'Đăng ký khuôn mặt 3D thành công!',
+          };
+        }
+        return {'success': true, 'message': 'Đăng ký khuôn mặt 3D thành công!'};
+      } else {
+        String msg = 'Đăng ký không thành công (${response.statusCode})';
+        if (response.body.isNotEmpty) {
+          try {
+            final data = jsonDecode(response.body);
+            msg = data['message'] ?? data['title'] ?? msg;
+          } catch (_) {}
+        }
+        return {'success': false, 'message': msg};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Lỗi kết nối máy chủ: $e'};
     }
   }
 }

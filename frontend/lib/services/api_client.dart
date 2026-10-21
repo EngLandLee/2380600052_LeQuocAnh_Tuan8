@@ -4,9 +4,11 @@ import '../config/config_url.dart';
 import '../utils/auth_helper.dart';
 
 class ApiClient {
-  final String baseUrl;
+  final String? _explicitBaseUrl;
 
-  ApiClient({String? baseUrl}) : baseUrl = baseUrl ?? ConfigUrl.baseUrl;
+  ApiClient({String? baseUrl}) : _explicitBaseUrl = baseUrl;
+
+  String get baseUrl => _explicitBaseUrl ?? ConfigUrl.baseUrl;
 
   Future<Map<String, String>> _buildHeaders([Map<String, String>? extra]) async {
     final headers = {

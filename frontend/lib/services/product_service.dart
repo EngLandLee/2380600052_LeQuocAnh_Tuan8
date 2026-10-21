@@ -53,4 +53,13 @@ class ProductService {
       return false;
     }
   }
+
+  Future<bool> seedSampleData() async {
+    try {
+      final response = await _api.post('Product/seed-sample-data', {});
+      return response.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
 }

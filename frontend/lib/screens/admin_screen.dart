@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/attendance_record.dart';
-import '../models/category.dart';
+import '../models/employee.dart';
 import '../models/energy_analytics.dart';
+import '../models/leave_request.dart';
 import '../models/meeting_room.dart';
-import '../models/product.dart';
 import '../services/attendance_service.dart';
-import '../services/category_service.dart';
+import '../services/employee_service.dart';
+import '../services/leave_request_service.dart';
 import '../services/meeting_service.dart';
-import '../services/product_service.dart';
 import '../utils/auth_helper.dart';
 import 'group_video_call_screen.dart';
+import 'leave_and_shift_screen.dart';
 import 'login_screen.dart';
 
 class AdminScreen extends StatefulWidget {
@@ -25,8 +26,8 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
 
   final AttendanceService _attendanceService = AttendanceService();
   final MeetingService _meetingService = MeetingService();
-  final CategoryService _categoryService = CategoryService();
-  final ProductService _productService = ProductService();
+  final EmployeeService _employeeService = EmployeeService();
+  final LeaveRequestService _leaveRequestService = LeaveRequestService();
 
   bool _isLoading = true;
   String _adminUsername = '';
@@ -34,8 +35,8 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
   List<AttendanceRecord> _todayRecords = [];
   EnergyAnalytics? _energyAnalytics;
   List<MeetingRoom> _meetingRooms = [];
-  List<Category> _categories = [];
-  List<Product> _products = [];
+  List<Employee> _employees = [];
+  List<LeaveRequest> _leaveRequests = [];
 
   @override
   void initState() {
@@ -56,8 +57,8 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
     final today = await _attendanceService.getAllTodayRecords();
     final energy = await _attendanceService.getEnergyAnalytics();
     final rooms = await _meetingService.getActiveRooms();
-    final cats = await _categoryService.getAll();
-    final prods = await _productService.getAll();
+    final emps = await _employeeService.getAll();
+    final leaves = await _leaveRequestService.getAll();
 
     if (mounted) {
       setState(() {
@@ -65,8 +66,8 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
         _todayRecords = today;
         _energyAnalytics = energy;
         _meetingRooms = rooms;
-        _categories = cats;
-        _products = prods;
+        _employees = emps;
+        _leaveRequests = leaves;
         _isLoading = false;
       });
     }
@@ -195,7 +196,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
             Tab(icon: Icon(Icons.people_alt_rounded), text: 'Ca Trực Hôm Nay'),
             Tab(icon: Icon(Icons.bolt_rounded), text: 'AI Mood & Sức Khỏe'),
             Tab(icon: Icon(Icons.video_call_rounded), text: 'Họp & Thẻ NFC'),
-            Tab(icon: Icon(Icons.inventory_2_rounded), text: 'Kho & Danh Mục'),
+            Tab(icon: Icon(Icons.badge_rounded), text: 'Nhân Sự & Đơn Nghỉ (CRUD)'),
           ],
         ),
       ),
@@ -697,181 +698,514 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
     );
   }
 
-  // TAB 4: Kho & Danh Mục (Preserving Week 7 CRUD)
+  // TAB 4: Quản Lý Nhân Sự & Đơn Nghỉ Phép (CRUD - 5.5đ)
   Widget _buildInventoryTab() {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text('Danh Mục Sản Phẩm (${_categories.length})', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-            IconButton(
-              icon: const Icon(Icons.add_circle, color: Color(0xFF10B981)),
-              onPressed: () => _showCategoryDialog(),
-            ),
-          ],
-        ),
-        ..._categories.map((c) => ListTile(
-              leading: const Icon(Icons.category, color: Color(0xFF818CF8)),
-              title: Text(c.name, style: const TextStyle(color: Colors.white)),
-              subtitle: Text(c.description ?? '', style: const TextStyle(color: Colors.white54)),
-              trailing: IconButton(
-                icon: const Icon(Icons.delete_outline, color: Color(0xFFEF4444)),
-                onPressed: () async {
-                  await _categoryService.delete(c.id);
-                  _loadAllAdminData();
-                },
+    return RefreshIndicator(
+      onRefresh: _loadAllAdminData,
+      color: const Color(0xFF6366F1),
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          // Banner Trung tâm CRUD
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF4F46E5), Color(0xFF6366F1)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-            )),
-        const Divider(color: Colors.white12, height: 32),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text('Sản Phẩm Trong Kho (${_products.length})', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-            IconButton(
-              icon: const Icon(Icons.add_circle, color: Color(0xFF10B981)),
-              onPressed: () => _showProductDialog(),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF4F46E5).withValues(alpha: 0.3),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
-          ],
-        ),
-        ..._products.map((p) => ListTile(
-              leading: const Icon(Icons.inventory_2, color: Color(0xFF38BDF8)),
-              title: Text(p.name, style: const TextStyle(color: Colors.white)),
-              subtitle: Text('${p.price} VNĐ • ${p.description ?? ''}', style: const TextStyle(color: Colors.white54)),
-              trailing: IconButton(
-                icon: const Icon(Icons.delete_outline, color: Color(0xFFEF4444)),
-                onPressed: () async {
-                  await _productService.delete(p.id);
-                  _loadAllAdminData();
-                },
-              ),
-            )),
-      ],
-    );
-  }
-
-  void _showCategoryDialog({Category? category}) {
-    final nameController = TextEditingController(text: category?.name ?? '');
-    final descController = TextEditingController(text: category?.description ?? '');
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E293B),
-        title: Text(category == null ? 'Thêm Danh Mục' : 'Sửa Danh Mục', style: const TextStyle(color: Colors.white)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(labelText: 'Tên danh mục', labelStyle: TextStyle(color: Colors.white70)),
+            child: Row(
+              children: [
+                const Icon(Icons.manage_accounts_rounded, color: Colors.white, size: 36),
+                const SizedBox(width: 14),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Trung Tâm CRUD Nhân Sự & Ca Trực',
+                        style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                      SizedBox(height: 3),
+                      Text(
+                        'Quản lý hồ sơ nhân viên, thẻ NFC, xét duyệt đơn nghỉ phép',
+                        style: TextStyle(color: Colors.white70, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const LeaveAndShiftScreen()),
+                    );
+                    _loadAllAdminData();
+                  },
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: Colors.black87),
+                  child: const Text('Đơn Nghỉ', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ],
             ),
-            TextField(
-              controller: descController,
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(labelText: 'Mô tả', labelStyle: TextStyle(color: Colors.white70)),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy', style: TextStyle(color: Colors.white54))),
-          ElevatedButton(
-            onPressed: () async {
-              final name = nameController.text.trim();
-              final desc = descController.text.trim().isEmpty ? null : descController.text.trim();
-              if (name.isEmpty) return;
-
-              if (category == null) {
-                await _categoryService.create(name, desc);
-              } else {
-                await _categoryService.update(category.id, name, desc);
-              }
-              if (ctx.mounted) {
-                Navigator.pop(ctx);
-                _loadAllAdminData();
-              }
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF6366F1)),
-            child: const Text('Lưu', style: TextStyle(color: Colors.white)),
           ),
+
+          const SizedBox(height: 14),
+
+          // Nạp dữ liệu mẫu nhanh
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    await _employeeService.seedSample();
+                    _loadAllAdminData();
+                  },
+                  icon: const Icon(Icons.group_add_rounded, size: 16, color: Color(0xFF38BDF8)),
+                  label: const Text('Nạp 4 Nhân Viên', style: TextStyle(color: Color(0xFF38BDF8), fontSize: 12)),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Color(0xFF38BDF8), width: 1),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    await _leaveRequestService.seedSample();
+                    _loadAllAdminData();
+                  },
+                  icon: const Icon(Icons.event_available_rounded, size: 16, color: Color(0xFF10B981)),
+                  label: const Text('Nạp Đơn Nghỉ Mẫu', style: TextStyle(color: Color(0xFF10B981), fontSize: 12)),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Color(0xFF10B981), width: 1),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 20),
+
+          // SECTION 1: QUẢN LÝ NHÂN SỰ
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Danh Sách Nhân Sự (${_employees.length})',
+                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              IconButton(
+                icon: const Icon(Icons.person_add_alt_1_rounded, color: Color(0xFF10B981)),
+                tooltip: 'Thêm nhân viên mới',
+                onPressed: () => _showEmployeeDialog(),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          if (_employees.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(color: const Color(0xFF1E293B), borderRadius: BorderRadius.circular(16)),
+              child: const Center(child: Text('Chưa có nhân viên nào', style: TextStyle(color: Colors.white38))),
+            )
+          else
+            ..._employees.map((emp) {
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E293B),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+                ),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: const Color(0xFF6366F1).withValues(alpha: 0.2),
+                      child: Text(
+                        emp.fullName.isNotEmpty ? emp.fullName.substring(0, 1).toUpperCase() : 'U',
+                        style: const TextStyle(color: Color(0xFF818CF8), fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                emp.fullName.isNotEmpty ? emp.fullName : emp.userName,
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                              ),
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: emp.role == 'Admin'
+                                      ? const Color(0xFFEF4444).withValues(alpha: 0.2)
+                                      : const Color(0xFF10B981).withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  emp.role,
+                                  style: TextStyle(
+                                    color: emp.role == 'Admin' ? const Color(0xFFEF4444) : const Color(0xFF10B981),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Phòng: ${emp.department} • @${emp.userName}',
+                            style: const TextStyle(color: Colors.white54, fontSize: 12),
+                          ),
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              Icon(
+                                emp.nfcCardId != null ? Icons.nfc_rounded : Icons.nfc_outlined,
+                                size: 12,
+                                color: emp.nfcCardId != null ? const Color(0xFF10B981) : Colors.white38,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                emp.nfcCardId != null ? 'Thẻ: ${emp.nfcCardId}' : 'Chưa gán thẻ NFC',
+                                style: TextStyle(
+                                  color: emp.nfcCardId != null ? const Color(0xFF10B981) : Colors.white38,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.edit_rounded, color: Color(0xFF818CF8), size: 20),
+                      tooltip: 'Sửa nhân viên',
+                      onPressed: () => _showEmployeeDialog(employee: emp),
+                    ),
+                    if (emp.userName.toLowerCase() != 'admin')
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFEF4444), size: 20),
+                        tooltip: 'Xóa nhân viên',
+                        onPressed: () => _confirmDeleteEmployee(emp),
+                      ),
+                  ],
+                ),
+              );
+            }),
+
+          const SizedBox(height: 24),
+
+          // SECTION 2: QUẢN LÝ ĐƠN NGHỈ PHÉP
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Đơn Xin Nghỉ Phép & Đổi Ca (${_leaveRequests.length})',
+                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              IconButton(
+                icon: const Icon(Icons.post_add_rounded, color: Color(0xFF818CF8)),
+                tooltip: 'Mở giao diện Đơn nghỉ chi tiết',
+                onPressed: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LeaveAndShiftScreen()),
+                  );
+                  _loadAllAdminData();
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          if (_leaveRequests.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(color: const Color(0xFF1E293B), borderRadius: BorderRadius.circular(16)),
+              child: const Center(child: Text('Chưa có đơn xin nghỉ nào', style: TextStyle(color: Colors.white38))),
+            )
+          else
+            ..._leaveRequests.map((req) {
+              final isPending = req.status == 'Chờ duyệt';
+              final statusColor = req.status == 'Đã duyệt'
+                  ? const Color(0xFF10B981)
+                  : req.status == 'Từ chối'
+                      ? const Color(0xFFEF4444)
+                      : const Color(0xFFF59E0B);
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E293B),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '${req.employeeName} • ${req.leaveType}',
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: statusColor.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            req.status,
+                            style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Thời gian: ${req.startDate} → ${req.endDate}',
+                      style: const TextStyle(color: Color(0xFF38BDF8), fontSize: 12),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Lý do: "${req.reason}"',
+                      style: const TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
+                    if (isPending) ...[
+                      const Divider(color: Colors.white12, height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: () async {
+                              await _leaveRequestService.updateStatus(req.id, 'Từ chối', reviewNote: 'Không duyệt ca này');
+                              _loadAllAdminData();
+                            },
+                            child: const Text('Từ Chối', style: TextStyle(color: Color(0xFFEF4444), fontSize: 13)),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton(
+                            onPressed: () async {
+                              await _leaveRequestService.updateStatus(req.id, 'Đã duyệt', reviewNote: 'Đã duyệt ca nghỉ');
+                              _loadAllAdminData();
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF10B981),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            ),
+                            child: const Text('Duyệt Đơn', style: TextStyle(color: Colors.white, fontSize: 13)),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              );
+            }),
         ],
       ),
     );
   }
 
-  void _showProductDialog({Product? product}) {
-    final nameController = TextEditingController(text: product?.name ?? '');
-    final priceController = TextEditingController(text: product?.price.toString() ?? '');
-    final descController = TextEditingController(text: product?.description ?? '');
-    int? selectedCatId = product?.categoryId ?? (_categories.isNotEmpty ? _categories.first.id : null);
+  Future<void> _showEmployeeDialog({Employee? employee}) async {
+    final isEdit = employee != null;
+    final userCtrl = TextEditingController(text: employee?.userName ?? '');
+    final nameCtrl = TextEditingController(text: employee?.fullName ?? '');
+    final emailCtrl = TextEditingController(text: employee?.email ?? '');
+    final passCtrl = TextEditingController(text: 'Admin@123');
+    final deptCtrl = TextEditingController(text: employee?.department ?? 'Công Nghệ & Kỹ Thuật');
+    final phoneCtrl = TextEditingController(text: employee?.phoneNumber ?? '');
+    final nfcCtrl = TextEditingController(text: employee?.nfcCardId ?? '');
+    String role = employee?.role ?? 'User';
 
-    showDialog(
+    await showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          backgroundColor: const Color(0xFF1E293B),
-          title: Text(product == null ? 'Thêm Sản Phẩm' : 'Sửa Sản Phẩm', style: const TextStyle(color: Colors.white)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(labelText: 'Tên sản phẩm', labelStyle: TextStyle(color: Colors.white70)),
-              ),
-              TextField(
-                controller: priceController,
-                keyboardType: TextInputType.number,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(labelText: 'Giá', labelStyle: TextStyle(color: Colors.white70)),
-              ),
-              TextField(
-                controller: descController,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(labelText: 'Mô tả sản phẩm', labelStyle: TextStyle(color: Colors.white70)),
-              ),
-              if (_categories.isNotEmpty)
-                DropdownButton<int?>(
-                  dropdownColor: const Color(0xFF1E293B),
-                  value: selectedCatId,
-                  isExpanded: true,
-                  style: const TextStyle(color: Colors.white),
-                  items: [
-                    const DropdownMenuItem(value: null, child: Text('Không có danh mục', style: TextStyle(color: Colors.white54))),
-                    ..._categories.map((c) => DropdownMenuItem(value: c.id, child: Text(c.name, style: const TextStyle(color: Colors.white)))),
-                  ],
-                  onChanged: (val) => setDialogState(() => selectedCatId = val),
-                ),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy', style: TextStyle(color: Colors.white54))),
-            ElevatedButton(
-              onPressed: () async {
-                final name = nameController.text.trim();
-                final price = double.tryParse(priceController.text) ?? 0;
-                final desc = descController.text.trim().isEmpty ? null : descController.text.trim();
-                if (name.isEmpty) return;
-
-                if (product == null) {
-                  await _productService.create(name, price, desc, selectedCatId);
-                } else {
-                  await _productService.update(product.id, name, price, desc, selectedCatId);
-                }
-                if (ctx.mounted) {
-                  Navigator.pop(ctx);
-                  _loadAllAdminData();
-                }
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF6366F1)),
-              child: const Text('Lưu', style: TextStyle(color: Colors.white)),
+        builder: (ctx, setSheetState) => Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: const BoxDecoration(
+              color: Color(0xFF1E293B),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
             ),
-          ],
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 44,
+                      height: 4,
+                      decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    isEdit ? 'Chỉnh Sửa Hồ Sơ Nhân Viên' : 'Thêm Nhân Viên Mới',
+                    style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
+                  if (!isEdit) ...[
+                    TextField(
+                      controller: userCtrl,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: const InputDecoration(labelText: 'Tên đăng nhập *', labelStyle: TextStyle(color: Color(0xFF818CF8))),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  TextField(
+                    controller: nameCtrl,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: const InputDecoration(labelText: 'Họ và tên *', labelStyle: TextStyle(color: Color(0xFF818CF8))),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: emailCtrl,
+                    keyboardType: TextInputType.emailAddress,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: const InputDecoration(labelText: 'Email *', labelStyle: TextStyle(color: Color(0xFF818CF8))),
+                  ),
+                  const SizedBox(height: 12),
+                  if (!isEdit) ...[
+                    TextField(
+                      controller: passCtrl,
+                      obscureText: true,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: const InputDecoration(labelText: 'Mật khẩu (mặc định: Admin@123)', labelStyle: TextStyle(color: Color(0xFF818CF8))),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  TextField(
+                    controller: deptCtrl,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: const InputDecoration(labelText: 'Phòng ban phân bổ', labelStyle: TextStyle(color: Color(0xFF818CF8))),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: phoneCtrl,
+                    keyboardType: TextInputType.phone,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: const InputDecoration(labelText: 'Số điện thoại liên hệ', labelStyle: TextStyle(color: Color(0xFF818CF8))),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: nfcCtrl,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: const InputDecoration(labelText: 'Mã Chip / UID Thẻ NFC', labelStyle: TextStyle(color: Color(0xFF818CF8))),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    dropdownColor: const Color(0xFF1E293B),
+                    initialValue: role,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: const InputDecoration(labelText: 'Phân quyền vai trò', labelStyle: TextStyle(color: Color(0xFF818CF8))),
+                    items: const [
+                      DropdownMenuItem(value: 'User', child: Text('Nhân viên (User)')),
+                      DropdownMenuItem(value: 'Admin', child: Text('Quản trị viên (Admin)')),
+                      DropdownMenuItem(value: 'Guest', child: Text('Khách hàng / Khách thăm (Guest)')),
+                    ],
+                    onChanged: (val) => setSheetState(() => role = val ?? role),
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        final email = emailCtrl.text.trim();
+                        final name = nameCtrl.text.trim();
+                        if (email.isEmpty || name.isEmpty) return;
+
+                        bool ok;
+                        if (isEdit) {
+                          ok = await _employeeService.update(
+                            employee.id,
+                            email: email,
+                            fullName: name,
+                            department: deptCtrl.text.trim(),
+                            phoneNumber: phoneCtrl.text.trim(),
+                            nfcCardId: nfcCtrl.text.trim(),
+                            role: role,
+                          );
+                        } else {
+                          ok = await _employeeService.create(
+                            username: userCtrl.text.trim(),
+                            email: email,
+                            fullName: name,
+                            password: passCtrl.text,
+                            department: deptCtrl.text.trim(),
+                            phoneNumber: phoneCtrl.text.trim(),
+                            nfcCardId: nfcCtrl.text.trim(),
+                            role: role,
+                          );
+                        }
+
+                        if (!mounted) return;
+                        if (ctx.mounted) Navigator.pop(ctx);
+                        if (ok) _loadAllAdminData();
+                      },
+                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF6366F1)),
+                      child: Text(isEdit ? 'Lưu Thay Đổi' : 'Tạo Nhân Viên', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
+  }
+
+  Future<void> _confirmDeleteEmployee(Employee emp) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E293B),
+        title: const Text('Xác nhận xóa', style: TextStyle(color: Colors.white)),
+        content: Text('Bạn có chắc chắn muốn xóa nhân viên "${emp.fullName} (@${emp.userName})"?\n(Toàn bộ bản ghi chấm công của nhân viên này sẽ được xóa).'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy', style: TextStyle(color: Colors.white54))),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444)),
+            child: const Text('Xóa Nhân Viên', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (ok == true) {
+      await _employeeService.delete(emp.id);
+      _loadAllAdminData();
+    }
   }
 
   Widget _buildMetricCard({required String title, required String value, required IconData icon, required Color color}) {

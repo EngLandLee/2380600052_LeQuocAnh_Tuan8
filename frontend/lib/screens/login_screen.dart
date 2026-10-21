@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import '../config/config_url.dart';
 import '../services/auth_service.dart';
 import '../utils/auth_helper.dart';
 import 'admin_screen.dart';
+import 'guest_screen.dart';
 import 'main_screen.dart';
 import 'registration_screen.dart';
 
@@ -39,10 +41,16 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _navigateToRoleScreen(String role) {
-    if (role.toLowerCase() == 'admin') {
+    final lower = role.toLowerCase();
+    if (lower == 'admin') {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const AdminScreen()),
+      );
+    } else if (lower == 'guest' || lower == 'visitor') {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const GuestScreen()),
       );
     } else {
       Navigator.pushReplacement(
@@ -50,6 +58,130 @@ class _LoginScreenState extends State<LoginScreen> {
         MaterialPageRoute(builder: (_) => const MainScreen()),
       );
     }
+  }
+
+  Future<void> _handleLoginWithOtp() async {
+    final username = _usernameController.text.trim();
+    final password = _passwordController.text;
+
+    if (username.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vui lòng nhập tên đăng nhập và mật khẩu trước'),
+          backgroundColor: Color(0xFFEF4444),
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    final res = await _authService.loginRequestOtp(username, password);
+    setState(() => _isLoading = false);
+
+    if (!mounted) return;
+
+    if (res['success'] != true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(res['message'] ?? 'Không thể gửi mã OTP'),
+          backgroundColor: const Color(0xFFEF4444),
+        ),
+      );
+      return;
+    }
+
+    final email = res['email'] as String? ?? username;
+    final devOtp = res['devOtp'] as String?;
+    final otpController = TextEditingController(text: devOtp ?? '');
+
+    if (!mounted) return;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E293B),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.mark_email_read_rounded, color: Color(0xFF10B981)),
+            SizedBox(width: 10),
+            Text('Xác Thực OTP Đăng Nhập', style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Mã xác thực OTP 6 chữ số đã được gửi đến:\n$email',
+              style: const TextStyle(color: Colors.white70, fontSize: 13),
+            ),
+            if (devOtp != null) ...[
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
+                ),
+                child: Text('Mã OTP kiểm thử: $devOtp', style: const TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold, fontSize: 12)),
+              ),
+            ],
+            const SizedBox(height: 16),
+            TextField(
+              controller: otpController,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white, fontSize: 22, letterSpacing: 6, fontWeight: FontWeight.bold),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: const Color(0xFF0F172A),
+                hintText: '------',
+                hintStyle: const TextStyle(color: Colors.white24, letterSpacing: 6),
+                counterText: '',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Hủy', style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final otp = otpController.text.trim();
+              if (otp.length != 6) return;
+
+              Navigator.pop(ctx);
+              setState(() => _isLoading = true);
+              final verifyRes = await _authService.loginVerifyOtp(email, otp);
+              setState(() => _isLoading = false);
+
+              if (!mounted) return;
+
+              if (verifyRes['success'] == true) {
+                final role = verifyRes['role'] as String;
+                _navigateToRoleScreen(role);
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(verifyRes['message'] ?? 'Xác thực OTP thất bại'),
+                    backgroundColor: const Color(0xFFEF4444),
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981)),
+            child: const Text('Xác Thực & Vào App', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _handleLogin() async {
@@ -94,6 +226,105 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  void _showServerConfigDialog() {
+    final serverController = TextEditingController(text: ConfigUrl.currentDisplayUrl);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E293B),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.dns_rounded, color: Color(0xFF818CF8)),
+            SizedBox(width: 10),
+            Text('Cấu Hình Máy Chủ', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Nhập địa chỉ máy chủ API backend để điện thoại khác cùng mạng hoặc qua Internet kết nối được:',
+              style: TextStyle(color: Colors.white70, fontSize: 13),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: serverController,
+              style: const TextStyle(color: Colors.white, fontSize: 14),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: const Color(0xFF0F172A),
+                labelText: 'Base URL',
+                labelStyle: const TextStyle(color: Color(0xFF818CF8)),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+            const SizedBox(height: 14),
+            const Text('Gợi ý kết nối nhanh:', style: TextStyle(color: Colors.white54, fontSize: 12)),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ActionChip(
+                  label: const Text('Cloudflare Internet (Khuyên Dùng)'),
+                  backgroundColor: const Color(0xFF334155),
+                  labelStyle: const TextStyle(color: Color(0xFF38BDF8), fontSize: 11, fontWeight: FontWeight.bold),
+                  onPressed: () {
+                    serverController.text = ConfigUrl.defaultCloudflareUrl;
+                  },
+                ),
+                ActionChip(
+                  label: const Text('Wi-Fi LAN'),
+                  backgroundColor: const Color(0xFF334155),
+                  labelStyle: const TextStyle(color: Colors.white, fontSize: 11),
+                  onPressed: () {
+                    serverController.text = ConfigUrl.defaultLanUrl;
+                  },
+                ),
+                ActionChip(
+                  label: const Text('Localhost (USB)'),
+                  backgroundColor: const Color(0xFF334155),
+                  labelStyle: const TextStyle(color: Colors.white54, fontSize: 11),
+                  onPressed: () {
+                    serverController.text = 'http://localhost:5000/api/';
+                  },
+                ),
+              ],
+            )
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Hủy', style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final newUrl = serverController.text.trim();
+              if (newUrl.isNotEmpty) {
+                await ConfigUrl.setCustomBaseUrl(newUrl);
+                if (!ctx.mounted) return;
+                Navigator.pop(ctx);
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Đã cập nhật máy chủ: $newUrl'),
+                    backgroundColor: const Color(0xFF10B981),
+                  ),
+                );
+                setState(() {});
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF6366F1)),
+            child: const Text('Lưu Cấu Hình', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -105,6 +336,14 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                Align(
+                  alignment: Alignment.topRight,
+                  child: IconButton(
+                    icon: const Icon(Icons.settings_ethernet_rounded, color: Colors.white54),
+                    tooltip: 'Cài đặt kết nối máy chủ',
+                    onPressed: _showServerConfigDialog,
+                  ),
+                ),
                 // Executive WorkPulse AI Logo
                 Center(
                   child: Container(
@@ -222,6 +461,24 @@ class _LoginScreenState extends State<LoginScreen> {
                             'Đăng Nhập',
                             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                           ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Yêu cầu đề bài: Đăng nhập bằng Tên đăng nhập + Mật khẩu + OTP
+                SizedBox(
+                  height: 48,
+                  child: OutlinedButton.icon(
+                    onPressed: _isLoading ? null : _handleLoginWithOtp,
+                    icon: const Icon(Icons.security_rounded, size: 18, color: Color(0xFF10B981)),
+                    label: const Text(
+                      'Đăng Nhập Xác Thực OTP (2-Step)',
+                      style: TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Color(0xFF10B981), width: 1.2),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 24),

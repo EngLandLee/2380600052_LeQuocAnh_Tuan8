@@ -34,6 +34,55 @@ class AuthService {
     }
   }
 
+  // Yêu cầu mã OTP đăng nhập bảo mật 2 bước
+  Future<Map<String, dynamic>> loginRequestOtp(String username, String password) async {
+    try {
+      final response = await _api.post('Authenticate/login-request-otp', {
+        'username': username,
+        'password': password,
+      });
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200 && data['status'] == true) {
+        return {
+          'success': true,
+          'email': data['email'],
+          'message': data['message'],
+          'devOtp': data['devOtp'],
+        };
+      }
+      return {'success': false, 'message': data['message'] ?? 'Không thể gửi mã OTP'};
+    } catch (e) {
+      return {'success': false, 'message': 'Lỗi kết nối: $e'};
+    }
+  }
+
+  // Xác thực mã OTP để đăng nhập
+  Future<Map<String, dynamic>> loginVerifyOtp(String email, String otp) async {
+    try {
+      final response = await _api.post('Authenticate/login-verify-otp', {
+        'email': email,
+        'otp': otp,
+      });
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200 && data['status'] == true) {
+        final token = data['token'] as String;
+        await AuthHelper.saveToken(token);
+        final role = await AuthHelper.getRole();
+        return {
+          'success': true,
+          'token': token,
+          'role': role,
+          'message': data['message'] ?? 'Đăng nhập thành công',
+        };
+      }
+      return {'success': false, 'message': data['message'] ?? 'Mã OTP không hợp lệ'};
+    } catch (e) {
+      return {'success': false, 'message': 'Lỗi kết nối: $e'};
+    }
+  }
+
   // Gửi OTP qua Gmail khi đăng ký
   Future<Map<String, dynamic>> registerSendOtp({
     required String username,

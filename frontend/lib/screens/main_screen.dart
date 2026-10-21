@@ -2,13 +2,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/attendance_record.dart';
-import '../models/product.dart';
 import '../services/attendance_service.dart';
-import '../services/product_service.dart';
 import '../utils/auth_helper.dart';
 import 'face_checkin_screen.dart';
+import 'face_enrollment_screen.dart';
 import 'cccd_onboarding_screen.dart';
 import 'group_video_call_screen.dart';
+import 'leave_and_shift_screen.dart';
 import 'login_screen.dart';
 import 'nfc_checkin_screen.dart';
 
@@ -21,16 +21,15 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   final AttendanceService _attendanceService = AttendanceService();
-  final ProductService _productService = ProductService();
 
   String _username = '';
   bool _isLoading = true;
   bool _hasCheckedIn = false;
   bool _hasCheckedOut = false;
   bool _hasLinkedNfc = true;
+  bool _isFaceRegistered = true;
   AttendanceRecord? _todayRecord;
   List<AttendanceRecord> _history = [];
-  List<Product> _products = [];
   Timer? _liveClockTimer;
   DateTime _currentTime = DateTime.now();
 
@@ -62,7 +61,6 @@ class _MainScreenState extends State<MainScreen> {
     final username = await AuthHelper.getUsername();
     final status = await _attendanceService.getTodayStatus();
     final history = await _attendanceService.getMyHistory(days: 14);
-    final products = await _productService.getAll();
     final profile = await _attendanceService.getMyProfile();
 
     if (mounted) {
@@ -71,9 +69,9 @@ class _MainScreenState extends State<MainScreen> {
         _hasCheckedIn = status['hasCheckedIn'] as bool? ?? false;
         _hasCheckedOut = status['hasCheckedOut'] as bool? ?? false;
         _todayRecord = status['todayRecord'] as AttendanceRecord?;
-        _hasLinkedNfc = profile?['hasLinkedNfc'] as bool? ?? true;
+        _hasLinkedNfc = profile?['hasLinkedNfc'] as bool? ?? (profile?['HasLinkedNfc'] as bool? ?? true);
+        _isFaceRegistered = profile?['isFaceRegistered'] as bool? ?? (profile?['IsFaceRegistered'] as bool? ?? false);
         _history = history;
-        _products = products;
         _isLoading = false;
       });
     }
@@ -157,6 +155,17 @@ class _MainScreenState extends State<MainScreen> {
     if (!mounted || method == null) return;
 
     if (method == 'FACE') {
+      if (!_isFaceRegistered) {
+        final enroll = await _showFaceEnrollmentRequiredDialog();
+        if (enroll == true && mounted) {
+          final res = await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const FaceEnrollmentScreen()),
+          );
+          if (res == true) _loadDashboardData();
+        }
+        return;
+      }
       final res = await Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => const FaceCheckInScreen(isCheckOut: true)),
@@ -169,12 +178,47 @@ class _MainScreenState extends State<MainScreen> {
       );
       if (res == true) _loadDashboardData();
     } else if (method == 'DUAL') {
+      if (!_isFaceRegistered) {
+        final enroll = await _showFaceEnrollmentRequiredDialog();
+        if (enroll == true && mounted) {
+          final res = await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const FaceEnrollmentScreen()),
+          );
+          if (res == true) _loadDashboardData();
+        }
+        return;
+      }
       final res = await Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => const FaceCheckInScreen(isDualFactor: true, isCheckOut: true)),
       );
       if (res == true) _loadDashboardData();
     }
+  }
+
+  Future<void> _handleFaceCheckIn({bool isDual = false}) async {
+    if (!_isFaceRegistered) {
+      final enroll = await _showFaceEnrollmentRequiredDialog();
+      if (!mounted) return;
+      if (enroll == true) {
+        final res = await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const FaceEnrollmentScreen()),
+        );
+        if (res == true) _loadDashboardData();
+      }
+      return;
+    }
+    final res = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => isDual
+            ? const FaceCheckInScreen(isDualFactor: true)
+            : const FaceCheckInScreen(),
+      ),
+    );
+    if (res == true) _loadDashboardData();
   }
 
   Widget _buildCheckOutOption({
@@ -312,6 +356,17 @@ class _MainScreenState extends State<MainScreen> {
                               ),
                             ),
                             IconButton(
+                              onPressed: () async {
+                                final res = await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const FaceEnrollmentScreen()),
+                                );
+                                if (res == true) _loadDashboardData();
+                              },
+                              icon: const Icon(Icons.face_retouching_natural_rounded, color: Colors.white70),
+                              tooltip: 'Quét/Cập nhật khuôn mặt 3D',
+                            ),
+                            IconButton(
                               onPressed: _handleLogout,
                               icon: const Icon(Icons.logout_rounded, color: Colors.white70),
                               tooltip: 'Đăng xuất',
@@ -320,6 +375,15 @@ class _MainScreenState extends State<MainScreen> {
                         ),
                       ),
                     ),
+
+                    // 3D Face Biometric Enrollment Banner for new employee if not enrolled yet
+                    if (!_isFaceRegistered)
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                          child: _buildFaceEnrollmentBanner(),
+                        ),
+                      ),
 
                     // Onboarding CCCD Banner for new employee if not linked yet
                     if (!_hasLinkedNfc)
@@ -370,13 +434,7 @@ class _MainScreenState extends State<MainScreen> {
                               subtitle: '3D Liveness & Mood Pulse',
                               icon: Icons.face_retouching_natural_rounded,
                               gradientColors: [const Color(0xFF6366F1), const Color(0xFF4F46E5)],
-                              onTap: () async {
-                                final res = await Navigator.push(
-                                  context,
-                                  MaterialPageRoute(builder: (_) => const FaceCheckInScreen()),
-                                );
-                                if (res == true) _loadDashboardData();
-                              },
+                              onTap: () => _handleFaceCheckIn(isDual: false),
                             ),
                             _buildActionTile(
                               title: 'Quẹt Thẻ Từ NFC',
@@ -396,15 +454,7 @@ class _MainScreenState extends State<MainScreen> {
                               subtitle: 'Thẻ NFC + Khuôn mặt',
                               icon: Icons.verified_user_rounded,
                               gradientColors: [const Color(0xFF059669), const Color(0xFF047857)],
-                              onTap: () async {
-                                final res = await Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const FaceCheckInScreen(isDualFactor: true),
-                                  ),
-                                );
-                                if (res == true) _loadDashboardData();
-                              },
+                              onTap: () => _handleFaceCheckIn(isDual: true),
                             ),
                             _buildActionTile(
                               title: 'Họp Video Ca Trực',
@@ -419,6 +469,107 @@ class _MainScreenState extends State<MainScreen> {
                               },
                             ),
                           ],
+                        ),
+                      ),
+                    ),
+
+                    // Quản Lý Đơn Nghỉ Phép & Đổi Ca (CRUD Hub)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                        child: InkWell(
+                          onTap: () async {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const LeaveAndShiftScreen()),
+                            );
+                            _loadDashboardData();
+                          },
+                          borderRadius: BorderRadius.circular(20),
+                          child: Container(
+                            padding: const EdgeInsets.all(18),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF1E1B4B), Color(0xFF312E81)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: const Color(0xFF818CF8).withValues(alpha: 0.4),
+                                width: 1.5,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF6366F1).withValues(alpha: 0.2),
+                                  blurRadius: 16,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF6366F1).withValues(alpha: 0.25),
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: const Icon(
+                                    Icons.event_note_rounded,
+                                    color: Color(0xFF818CF8),
+                                    size: 28,
+                                  ),
+                                ),
+                                const SizedBox(width: 14),
+                                const Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Text(
+                                            'Đơn Nghỉ Phép & Đổi Ca (CRUD)',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          SizedBox(width: 6),
+                                          Icon(
+                                            Icons.verified,
+                                            color: Color(0xFF38BDF8),
+                                            size: 16,
+                                          ),
+                                        ],
+                                      ),
+                                      SizedBox(height: 3),
+                                      Text(
+                                        'Gửi đơn nghỉ phép, đổi ca làm việc, theo dõi xét duyệt',
+                                        style: TextStyle(
+                                          color: Colors.white70,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.white10,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.arrow_forward_ios_rounded,
+                                    color: Colors.white70,
+                                    size: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -469,31 +620,6 @@ class _MainScreenState extends State<MainScreen> {
                               return _buildHistoryItem(item);
                             },
                             childCount: _history.length,
-                          ),
-                        ),
-                      ),
-
-                    // Products from previous week (collapsible section)
-                    if (_products.isNotEmpty)
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
-                          child: ExpansionTile(
-                            collapsedBackgroundColor: const Color(0xFF1E293B),
-                            backgroundColor: const Color(0xFF1E293B),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                            collapsedShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                            title: Text(
-                              'Kho Hàng & Sản Phẩm (${_products.length})',
-                              style: const TextStyle(color: Colors.white70, fontSize: 14),
-                            ),
-                            children: _products.map((p) {
-                              return ListTile(
-                                leading: const Icon(Icons.inventory_2, color: Color(0xFF818CF8)),
-                                title: Text(p.name, style: const TextStyle(color: Colors.white)),
-                                subtitle: Text('${p.price} VNĐ', style: const TextStyle(color: Colors.white54)),
-                              );
-                            }).toList(),
                           ),
                         ),
                       ),
@@ -571,6 +697,118 @@ class _MainScreenState extends State<MainScreen> {
               elevation: 0,
             ),
             child: const Text('Quét Ngay', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFaceEnrollmentBanner() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF4F46E5), Color(0xFF3730A3)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF4F46E5).withValues(alpha: 0.35),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          )
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.2),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.face_retouching_natural_rounded, color: Colors.white, size: 24),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Yêu Cầu Quét Khuôn Mặt 3D',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'Nhân viên mới cần quét toàn bộ góc khuôn mặt trước khi chấm công',
+                  style: TextStyle(color: Colors.white70, fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final res = await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const FaceEnrollmentScreen()),
+              );
+              if (res == true) _loadDashboardData();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: const Color(0xFF3730A3),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              elevation: 0,
+            ),
+            child: const Text('Quét Mặt 3D', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<bool?> _showFaceEnrollmentRequiredDialog() {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E293B),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.face_retouching_natural_rounded, color: Color(0xFF818CF8)),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Yêu Cầu Quét Mặt 3D',
+                style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: const Text(
+          'Bạn là nhân viên mới hoặc chưa đăng ký hồ sơ khuôn mặt sinh trắc học. Vui lòng quét toàn bộ góc khuôn mặt 3D trước khi thực hiện chấm công Face ID.',
+          style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Để sau', style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF6366F1),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Quét Mặt Ngay'),
           ),
         ],
       ),

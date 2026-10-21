@@ -12,6 +12,7 @@ public class ApplicationDbContext : IdentityDbContext<User>
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<AttendanceRecord> AttendanceRecords => Set<AttendanceRecord>();
     public DbSet<MeetingRoom> MeetingRooms => Set<MeetingRoom>();
+    public DbSet<LeaveRequest> LeaveRequests => Set<LeaveRequest>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
