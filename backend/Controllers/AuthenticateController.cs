@@ -181,7 +181,7 @@ public class AuthenticateController : ControllerBase
         }
 
         var token = GenerateToken(authClaims);
-        var primaryRole = userRoles.FirstOrDefault() ?? "User";
+        var primaryRole = userRoles.Contains("Admin") ? "Admin" : (userRoles.FirstOrDefault() ?? "User");
 
         return Ok(new
         {

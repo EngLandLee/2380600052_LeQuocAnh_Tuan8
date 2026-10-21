@@ -36,6 +36,12 @@ class AuthHelper {
       final decoded = JwtDecoder.decode(token);
       final role = decoded['role'] ??
           decoded['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'];
+      if (role is List) {
+        if (role.any((r) => r.toString().toLowerCase() == 'admin')) {
+          return 'Admin';
+        }
+        return role.firstOrNull?.toString() ?? 'User';
+      }
       return role?.toString() ?? 'User';
     } catch (_) {
       return 'User';
