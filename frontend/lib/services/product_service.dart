@@ -16,4 +16,41 @@ class ProductService {
     } catch (_) {}
     return [];
   }
+
+  Future<bool> create(String name, double price, String? description, int? categoryId) async {
+    try {
+      final response = await _api.post('Product', {
+        'name': name,
+        'price': price,
+        'description': description,
+        'categoryId': categoryId,
+      });
+      return response.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> update(int id, String name, double price, String? description, int? categoryId) async {
+    try {
+      final response = await _api.put('Product/$id', {
+        'name': name,
+        'price': price,
+        'description': description,
+        'categoryId': categoryId,
+      });
+      return response.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> delete(int id) async {
+    try {
+      final response = await _api.delete('Product/$id');
+      return response.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
 }

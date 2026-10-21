@@ -18,10 +18,19 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'LTDD Tuần 7 - Phân Quyền Identity & JWT',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-        useMaterial3: true,
+      title: 'WorkPulse AI - Chấm Công Thông Minh & Giao Ban Ca Trực',
+      theme: ThemeData.dark().copyWith(
+        scaffoldBackgroundColor: const Color(0xFF0F172A),
+        colorScheme: const ColorScheme.dark(
+          primary: Color(0xFF6366F1),
+          secondary: Color(0xFF10B981),
+          surface: Color(0xFF1E293B),
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF1E293B),
+          elevation: 0,
+          foregroundColor: Colors.white,
+        ),
       ),
       debugShowCheckedModeBanner: false,
       home: const LoginScreen(),
