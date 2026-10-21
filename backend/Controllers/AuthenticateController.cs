@@ -50,10 +50,13 @@ public class AuthenticateController : ControllerBase
         var otpCode = _otpService.GenerateOtp(model);
         await _emailService.SendOtpEmailAsync(model.Email, model.Username, otpCode);
 
+        var isDev = string.IsNullOrWhiteSpace(_configuration.GetSection("EmailSettings")["AppPassword"]);
+
         return Ok(new
         {
             status = true,
-            message = $"Mã OTP đã được gửi đến email {model.Email}. Vui lòng nhập mã để hoàn tất đăng ký."
+            message = $"Mã OTP đã được gửi đến email {model.Email}. Vui lòng nhập mã để hoàn tất đăng ký.",
+            devOtp = isDev ? otpCode : null
         });
     }
 
@@ -114,10 +117,13 @@ public class AuthenticateController : ControllerBase
 
         await _emailService.SendOtpEmailAsync(model.Email, "Người dùng", result.NewOtp);
 
+        var isDev = string.IsNullOrWhiteSpace(_configuration.GetSection("EmailSettings")["AppPassword"]);
+
         return Ok(new
         {
             status = true,
-            message = "Đã gửi lại mã xác thực OTP mới về Gmail của bạn."
+            message = "Đã gửi lại mã xác thực OTP mới về Gmail của bạn.",
+            devOtp = isDev ? result.NewOtp : null
         });
     }
 
