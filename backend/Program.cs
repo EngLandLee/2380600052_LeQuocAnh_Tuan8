@@ -9,6 +9,7 @@ using Microsoft.OpenApi.Models;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.WebHost.UseUrls("http://0.0.0.0:5000");
 
 // 1. DbContext with SQLite
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
