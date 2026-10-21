@@ -123,6 +123,21 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
+  String _formatVietnameseDate(DateTime dt) {
+    const days = [
+      'Thứ Hai',
+      'Thứ Ba',
+      'Thứ Tư',
+      'Thứ Năm',
+      'Thứ Sáu',
+      'Thứ Bảy',
+      'Chủ Nhật'
+    ];
+    final dayName = days[dt.weekday - 1];
+    final dateStr = DateFormat('dd/MM/yyyy').format(dt);
+    return '$dayName, $dateStr';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -171,7 +186,7 @@ class _MainScreenState extends State<MainScreen> {
                                     ),
                                   ),
                                   Text(
-                                    DateFormat('EEEE, dd/MM/yyyy', 'vi').format(_currentTime),
+                                    _formatVietnameseDate(_currentTime),
                                     style: const TextStyle(color: Colors.white54, fontSize: 13),
                                   ),
                                 ],
