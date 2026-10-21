@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import 'otp_verification_screen.dart';
 
 class RegistrationScreen extends StatefulWidget {
   const RegistrationScreen({super.key});
@@ -19,9 +20,11 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   final _authService = AuthService();
 
   Future<void> _handleRegister() async {
-    if (_usernameController.text.isEmpty ||
-        _emailController.text.isEmpty ||
-        _passwordController.text.isEmpty) {
+    final username = _usernameController.text.trim();
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    if (username.isEmpty || email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Vui lòng điền đủ Username, Email và Mật khẩu'),
@@ -31,12 +34,22 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       return;
     }
 
+    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Địa chỉ Email không đúng định dạng'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
-    final result = await _authService.register(
-      username: _usernameController.text.trim(),
-      email: _emailController.text.trim(),
-      password: _passwordController.text,
+    final result = await _authService.registerSendOtp(
+      username: username,
+      email: email,
+      password: password,
       initials: _initialsController.text.trim(),
       role: _selectedRole,
     );
@@ -52,7 +65,17 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
           backgroundColor: Colors.green,
         ),
       );
-      Navigator.pop(context); // Trở về LoginScreen
+      // Chuyển sang màn hình xác thực OTP
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => OtpVerificationScreen(
+            email: email,
+            username: username,
+            initialDevOtp: result['devOtp'],
+          ),
+        ),
+      );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -95,7 +118,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
                 decoration: const InputDecoration(
-                  labelText: 'Email',
+                  labelText: 'Email (nhận mã OTP)',
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.email),
                 ),
@@ -153,7 +176,10 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                         width: 20,
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                       )
-                    : const Text('Đăng Ký', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    : const Text(
+                        'Tiếp Tục (Nhận Mã OTP)',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
               ),
             ],
           ),
