@@ -20,15 +20,20 @@ class MeetingRoom {
   });
 
   factory MeetingRoom.fromJson(Map<String, dynamic> json) {
+    DateTime parseDate(dynamic val) {
+      if (val == null) return DateTime.now();
+      return DateTime.tryParse(val.toString()) ?? DateTime.now();
+    }
+
+    final host = (json['creatorName'] ?? json['hostName'] ?? json['host'])?.toString() ?? 'Admin';
+
     return MeetingRoom(
       id: json['id'] as int? ?? 0,
       roomCode: json['roomCode']?.toString() ?? '',
       title: json['title']?.toString() ?? '',
-      creatorName: json['creatorName']?.toString() ?? '',
+      creatorName: host,
       creatorId: json['creatorId']?.toString() ?? '',
-      createdAt: json['createdAt'] != null
-          ? DateTime.parse(json['createdAt'].toString())
-          : DateTime.now(),
+      createdAt: parseDate(json['createdAt']),
       isActive: json['isActive'] as bool? ?? true,
       maxParticipants: json['maxParticipants'] as int? ?? 12,
     );

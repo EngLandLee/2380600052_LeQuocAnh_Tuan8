@@ -34,28 +34,63 @@ class AttendanceRecord {
   });
 
   factory AttendanceRecord.fromJson(Map<String, dynamic> json) {
+    DateTime parseDateTime(dynamic val) {
+      if (val == null) return DateTime.now();
+      final str = val.toString();
+      final dt = DateTime.tryParse(str);
+      if (dt != null) return dt;
+      // Handle HH:mm:ss format
+      if (str.contains(':')) {
+        final parts = str.split(':');
+        if (parts.length >= 2) {
+          final now = DateTime.now();
+          final h = int.tryParse(parts[0]) ?? now.hour;
+          final m = int.tryParse(parts[1]) ?? now.minute;
+          final s = parts.length > 2 ? (int.tryParse(parts[2]) ?? 0) : 0;
+          return DateTime(now.year, now.month, now.day, h, m, s);
+        }
+      }
+      return DateTime.now();
+    }
+
+    DateTime? parseNullableDateTime(dynamic val) {
+      if (val == null) return null;
+      final str = val.toString();
+      if (str.isEmpty || str == 'Đang làm việc') return null;
+      final dt = DateTime.tryParse(str);
+      if (dt != null) return dt;
+      if (str.contains(':')) {
+        final parts = str.split(':');
+        if (parts.length >= 2) {
+          final now = DateTime.now();
+          final h = int.tryParse(parts[0]) ?? now.hour;
+          final m = int.tryParse(parts[1]) ?? now.minute;
+          final s = parts.length > 2 ? (int.tryParse(parts[2]) ?? 0) : 0;
+          return DateTime(now.year, now.month, now.day, h, m, s);
+        }
+      }
+      return null;
+    }
+
+    final rawUser = (json['userName'] ?? json['username'])?.toString();
+    final rawFullName = (json['fullName'] ?? rawUser)?.toString();
+
     return AttendanceRecord(
       id: json['id'] as int? ?? 0,
       userId: json['userId']?.toString() ?? '',
-      userName: json['userName']?.toString(),
-      fullName: json['fullName']?.toString(),
+      userName: rawUser,
+      fullName: rawFullName,
       department: json['department']?.toString(),
-      date: json['date'] != null
-          ? DateTime.parse(json['date'].toString())
-          : DateTime.now(),
-      checkInTime: json['checkInTime'] != null
-          ? DateTime.parse(json['checkInTime'].toString())
-          : DateTime.now(),
-      checkOutTime: json['checkOutTime'] != null
-          ? DateTime.parse(json['checkOutTime'].toString())
-          : null,
+      date: json['date'] != null ? parseDateTime(json['date']) : DateTime.now(),
+      checkInTime: parseDateTime(json['checkInTime']),
+      checkOutTime: parseNullableDateTime(json['checkOutTime']),
       method: json['method']?.toString() ?? 'FaceID',
       energyScore: json['energyScore'] != null
           ? (json['energyScore'] as num).toDouble()
           : null,
-      mood: json['mood']?.toString(),
+      mood: (json['mood'] ?? json['moodLabel'])?.toString(),
       photoUrl: json['photoUrl']?.toString(),
-      detectedBlink: json['detectedBlink'] as bool? ?? false,
+      detectedBlink: (json['detectedBlink'] ?? json['isLivenessVerified']) as bool? ?? false,
       status: json['status']?.toString() ?? 'OnTime',
       deviceInfo: json['deviceInfo']?.toString(),
     );
@@ -81,7 +116,6 @@ class AttendanceRecord {
     };
   }
 
-  // Helper for UI duration
   String get workingDuration {
     if (checkOutTime == null) {
       final diff = DateTime.now().difference(checkInTime);

@@ -267,14 +267,17 @@ public class AttendanceController : ControllerBase
             .Select(r => new
             {
                 r.Id,
-                Username = r.User != null ? r.User.UserName : "Unknown",
+                r.UserId,
+                UserName = r.User != null ? r.User.UserName : "Unknown",
+                FullName = r.User != null ? r.User.UserName : "Nhân viên",
                 Department = r.User != null ? r.User.Department : "",
                 CheckInTime = r.CheckInTime.ToLocalTime().ToString("HH:mm:ss"),
                 CheckOutTime = r.CheckOutTime != null ? r.CheckOutTime.Value.ToLocalTime().ToString("HH:mm:ss") : "Đang làm việc",
                 r.Method,
                 r.EnergyScore,
-                r.MoodLabel,
-                r.IsLivenessVerified
+                Mood = r.MoodLabel,
+                Status = r.CheckInTime.Hour <= 8 ? "OnTime" : "Late",
+                DetectedBlink = r.IsLivenessVerified
             })
             .ToListAsync();
 

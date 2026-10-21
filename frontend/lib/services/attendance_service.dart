@@ -28,10 +28,11 @@ class AttendanceService {
 
     final data = jsonDecode(response.body);
     if (response.statusCode == 200) {
+      final rawRec = data['record'] ?? data['data'];
       return {
         'success': true,
         'message': data['message'] ?? 'Check-in thành công!',
-        'record': AttendanceRecord.fromJson(data['record']),
+        'record': rawRec != null ? AttendanceRecord.fromJson(rawRec) : null,
       };
     } else {
       return {
@@ -49,10 +50,11 @@ class AttendanceService {
 
     final data = jsonDecode(response.body);
     if (response.statusCode == 200) {
+      final rawRec = data['record'] ?? data['data'];
       return {
         'success': true,
         'message': data['message'] ?? 'Chấm công thẻ NFC thành công!',
-        'record': AttendanceRecord.fromJson(data['record']),
+        'record': rawRec != null ? AttendanceRecord.fromJson(rawRec) : null,
         'user': data['user'],
       };
     } else {
@@ -69,10 +71,11 @@ class AttendanceService {
     final data = jsonDecode(response.body);
 
     if (response.statusCode == 200) {
+      final rawRec = data['record'] ?? data['data'];
       return {
         'success': true,
         'message': data['message'] ?? 'Check-out thành công!',
-        'record': AttendanceRecord.fromJson(data['record']),
+        'record': rawRec != null ? AttendanceRecord.fromJson(rawRec) : null,
       };
     } else {
       return {
@@ -84,56 +87,76 @@ class AttendanceService {
 
   /// Trạng thái chấm công hôm nay
   Future<Map<String, dynamic>> getTodayStatus() async {
-    final response = await _client.get('attendance/today-status');
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      return {
-        'hasCheckedIn': data['hasCheckedIn'] as bool? ?? false,
-        'hasCheckedOut': data['hasCheckedOut'] as bool? ?? false,
-        'todayRecord': data['todayRecord'] != null
-            ? AttendanceRecord.fromJson(data['todayRecord'])
-            : null,
-      };
-    }
+    try {
+      final response = await _client.get('attendance/today-status');
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final rawRecord = data['todayRecord'] ?? data['record'];
+        return {
+          'hasCheckedIn': data['hasCheckedIn'] as bool? ?? false,
+          'hasCheckedOut': data['hasCheckedOut'] as bool? ?? false,
+          'todayRecord': rawRecord != null
+              ? AttendanceRecord.fromJson(rawRecord as Map<String, dynamic>)
+              : null,
+        };
+      }
+    } catch (_) {}
     return {'hasCheckedIn': false, 'hasCheckedOut': false, 'todayRecord': null};
   }
 
   /// Lịch sử chấm công của tôi
   Future<List<AttendanceRecord>> getMyHistory({int days = 30}) async {
-    final response = await _client.get('attendance/my-history?days=$days');
-    if (response.statusCode == 200) {
-      final List<dynamic> data = jsonDecode(response.body);
-      return data.map((item) => AttendanceRecord.fromJson(item)).toList();
-    }
+    try {
+      final response = await _client.get('attendance/my-history?days=$days');
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        final List<dynamic> data = decoded is List
+            ? decoded
+            : (decoded['data'] as List<dynamic>? ?? []);
+        return data.map((item) => AttendanceRecord.fromJson(item as Map<String, dynamic>)).toList();
+      }
+    } catch (_) {}
     return [];
   }
 
   /// Danh sách tất cả nhân viên check-in hôm nay (Dành cho Quản lý / Admin)
   Future<List<AttendanceRecord>> getAllTodayRecords() async {
-    final response = await _client.get('attendance/all-today');
-    if (response.statusCode == 200) {
-      final List<dynamic> data = jsonDecode(response.body);
-      return data.map((item) => AttendanceRecord.fromJson(item)).toList();
-    }
+    try {
+      final response = await _client.get('attendance/all-today');
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        final List<dynamic> data = decoded is List
+            ? decoded
+            : (decoded['data'] as List<dynamic>? ?? []);
+        return data.map((item) => AttendanceRecord.fromJson(item as Map<String, dynamic>)).toList();
+      }
+    } catch (_) {}
     return [];
   }
 
   /// Báo cáo Phân tích Năng lượng & Cảnh báo Kiệt sức (Admin / Quản lý)
   Future<EnergyAnalytics?> getEnergyAnalytics() async {
-    final response = await _client.get('attendance/energy-analytics');
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      return EnergyAnalytics.fromJson(data);
-    }
+    try {
+      final response = await _client.get('attendance/energy-analytics');
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return EnergyAnalytics.fromJson(data);
+      }
+    } catch (_) {}
     return null;
   }
 
   /// Gán thẻ NFC cho nhân viên (Admin)
   Future<bool> registerNfcCard(String userId, String nfcCardId) async {
-    final response = await _client.post('attendance/register-nfc', {
-      'userId': userId,
-      'nfcCardId': nfcCardId,
-    });
-    return response.statusCode == 200;
+    try {
+      final response = await _client.post('attendance/register-nfc', {
+        'targetUserId': userId,
+        'userId': userId,
+        'nfcCardId': nfcCardId,
+      });
+      return response.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
   }
 }
