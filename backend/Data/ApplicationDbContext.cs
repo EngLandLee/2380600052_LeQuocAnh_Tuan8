@@ -10,6 +10,8 @@ public class ApplicationDbContext : IdentityDbContext<User>
 
     public DbSet<Product> Products => Set<Product>();
     public DbSet<Category> Categories => Set<Category>();
+    public DbSet<AttendanceRecord> AttendanceRecords => Set<AttendanceRecord>();
+    public DbSet<MeetingRoom> MeetingRooms => Set<MeetingRoom>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
