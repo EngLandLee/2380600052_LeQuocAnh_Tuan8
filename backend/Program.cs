@@ -1,5 +1,6 @@
 using backend.Data;
 using backend.Models;
+using backend.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -50,6 +51,11 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();
+
+// MemoryCache and Email/OTP Services
+builder.Services.AddMemoryCache();
+builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddSingleton<IOtpService, OtpService>();
 
 // 4. CORS
 builder.Services.AddCors(options =>
