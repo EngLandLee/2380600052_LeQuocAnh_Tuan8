@@ -7,7 +7,9 @@ import '../services/nfc_service.dart';
 import 'face_checkin_screen.dart';
 
 class NfcCheckInScreen extends StatefulWidget {
-  const NfcCheckInScreen({super.key});
+  final bool isCheckOut;
+
+  const NfcCheckInScreen({super.key, this.isCheckOut = false});
 
   @override
   State<NfcCheckInScreen> createState() => _NfcCheckInScreenState();
@@ -212,9 +214,11 @@ class _NfcCheckInScreenState extends State<NfcCheckInScreen>
                 ),
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Quẹt Thẻ NFC Thành Công!',
-                style: TextStyle(
+              Text(
+                (record.checkOutTime != null || widget.isCheckOut)
+                    ? 'Quẹt Thẻ Check-out Thành Công!'
+                    : 'Quẹt Thẻ CCCD / NFC Thành Công!',
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -222,7 +226,9 @@ class _NfcCheckInScreenState extends State<NfcCheckInScreen>
               ),
               const SizedBox(height: 8),
               Text(
-                'Thời gian: ${DateFormat('HH:mm:ss - dd/MM/yyyy').format(record.checkInTime.toLocal())}',
+                (record.checkOutTime != null)
+                    ? 'Giờ ra: ${DateFormat('HH:mm:ss').format(record.checkOutTime!.toLocal())} • ${record.workingDuration}'
+                    : 'Thời gian vào ca: ${DateFormat('HH:mm:ss - dd/MM/yyyy').format(record.checkInTime.toLocal())}',
                 style: const TextStyle(color: Colors.white70, fontSize: 14),
               ),
               const SizedBox(height: 24),
@@ -481,7 +487,7 @@ class _NfcCheckInScreenState extends State<NfcCheckInScreen>
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'Đặt thẻ nhân viên sát phần ăng-ten NFC ở mặt lưng thiết bị',
+                    'Đặt thẻ Căn cước công dân (CCCD gắn chip) hoặc thẻ từ sát ăng-ten NFC ở mặt lưng thiết bị',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Colors.white54, fontSize: 13),
                   ),

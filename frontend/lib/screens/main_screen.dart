@@ -76,41 +76,156 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Future<void> _handleCheckOut() async {
-    final confirm = await showDialog<bool>(
+    final method = await showModalBottomSheet<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E293B),
-        title: const Text('Xác nhận kết thúc ca làm việc?', style: TextStyle(color: Colors.white)),
-        content: const Text(
-          'Hệ thống sẽ ghi nhận giờ Check-out và tổng thời gian làm việc hôm nay của bạn.',
-          style: TextStyle(color: Colors.white70),
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: Color(0xFF1E293B),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Hủy', style: TextStyle(color: Colors.white54)),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444)),
-            child: const Text('Check-out', style: TextStyle(color: Colors.white)),
-          ),
-        ],
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 44,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            const Text(
+              'Chọn Phương Thức Check-out Ra Về',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Xác thực danh tính để kết thúc ca làm việc và tính tổng thời gian công:',
+              style: TextStyle(color: Colors.white60, fontSize: 13),
+            ),
+            const SizedBox(height: 20),
+
+            // Option 1: Face ID Check-out
+            _buildCheckOutOption(
+              icon: Icons.face_retouching_natural_rounded,
+              color: const Color(0xFF6366F1),
+              title: 'Xác Thực Face ID Ra Về (Khuyên Dùng)',
+              subtitle: 'Nhận diện khuôn mặt 3D, đo năng lượng cuối ca & đối chiếu người ra về',
+              onTap: () => Navigator.pop(ctx, 'FACE'),
+            ),
+            const SizedBox(height: 12),
+
+            // Option 2: NFC / CCCD Tap
+            _buildCheckOutOption(
+              icon: Icons.contactless_rounded,
+              color: const Color(0xFF0284C7),
+              title: 'Chạm Thẻ Căn Cước (CCCD) / NFC',
+              subtitle: 'Chạm chip CCCD hoặc thẻ nhân viên vào mặt sau máy (1 chạm)',
+              onTap: () => Navigator.pop(ctx, 'NFC'),
+            ),
+            const SizedBox(height: 12),
+
+            // Option 3: Dual-Factor
+            _buildCheckOutOption(
+              icon: Icons.verified_user_rounded,
+              color: const Color(0xFF10B981),
+              title: 'Bảo Mật Kép (CCCD + Face ID)',
+              subtitle: 'Quẹt thẻ căn cước và xác thực khuôn mặt kép',
+              onTap: () => Navigator.pop(ctx, 'DUAL'),
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
       ),
     );
 
-    if (confirm == true) {
-      final res = await _attendanceService.checkOut();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(res['message'] ?? 'Check-out hoàn tất!'),
-            backgroundColor: res['success'] == true ? const Color(0xFF10B981) : const Color(0xFFEF4444),
-          ),
-        );
-        _loadDashboardData();
-      }
+    if (!mounted || method == null) return;
+
+    if (method == 'FACE') {
+      final res = await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const FaceCheckInScreen(isCheckOut: true)),
+      );
+      if (res == true) _loadDashboardData();
+    } else if (method == 'NFC') {
+      final res = await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const NfcCheckInScreen(isCheckOut: true)),
+      );
+      if (res == true) _loadDashboardData();
+    } else if (method == 'DUAL') {
+      final res = await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const FaceCheckInScreen(isDualFactor: true, isCheckOut: true)),
+      );
+      if (res == true) _loadDashboardData();
     }
+  }
+
+  Widget _buildCheckOutOption({
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0F172A),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.2),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 24),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(color: Colors.white54, fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded, color: Colors.white38),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _handleLogout() async {

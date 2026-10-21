@@ -65,9 +65,23 @@ class AttendanceService {
     }
   }
 
-  /// Check-out cuối ca
-  Future<Map<String, dynamic>> checkOut() async {
-    final response = await _client.post('attendance/check-out', {});
+  /// Check-out cuối ca (Hỗ trợ xác thực Face ID hoặc Thẻ NFC/CCCD)
+  Future<Map<String, dynamic>> checkOut({
+    String method = 'FaceID',
+    double? energyScore,
+    String? mood,
+    bool? detectedBlink,
+    String? photoBase64,
+    String? nfcCardId,
+  }) async {
+    final response = await _client.post('attendance/check-out', {
+      'method': method,
+      'energyScore': energyScore,
+      'mood': mood,
+      'detectedBlink': detectedBlink ?? true,
+      'photoBase64': photoBase64,
+      'nfcCardId': nfcCardId,
+    });
     final data = jsonDecode(response.body);
 
     if (response.statusCode == 200) {

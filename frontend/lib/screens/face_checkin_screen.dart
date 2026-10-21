@@ -8,11 +8,13 @@ import '../models/attendance_record.dart';
 
 class FaceCheckInScreen extends StatefulWidget {
   final bool isDualFactor;
+  final bool isCheckOut;
   final String? nfcCardId;
 
   const FaceCheckInScreen({
     super.key,
     this.isDualFactor = false,
+    this.isCheckOut = false,
     this.nfcCardId,
   });
 
@@ -181,14 +183,26 @@ class _FaceCheckInScreenState extends State<FaceCheckInScreen>
 
       final method = widget.isDualFactor ? 'DualFactor' : 'FaceID';
 
-      final result = await _attendanceService.checkInFace(
-        photoBase64: photoBase64,
-        energyScore: energyScore,
-        mood: mood,
-        detectedBlink: detectedBlink,
-        method: method,
-        deviceInfo: 'WorkPulse Mobile Camera',
-      );
+      final Map<String, dynamic> result;
+      if (widget.isCheckOut) {
+        result = await _attendanceService.checkOut(
+          photoBase64: photoBase64,
+          energyScore: energyScore,
+          mood: mood,
+          detectedBlink: detectedBlink,
+          method: method,
+          nfcCardId: widget.nfcCardId,
+        );
+      } else {
+        result = await _attendanceService.checkInFace(
+          photoBase64: photoBase64,
+          energyScore: energyScore,
+          mood: mood,
+          detectedBlink: detectedBlink,
+          method: method,
+          deviceInfo: 'WorkPulse Mobile Camera',
+        );
+      }
 
       if (result['success'] == true && mounted) {
         final record = result['record'] as AttendanceRecord;
@@ -220,14 +234,26 @@ class _FaceCheckInScreenState extends State<FaceCheckInScreen>
     const energyScore = 88.0;
     const mood = 'Energized';
 
-    final result = await _attendanceService.checkInFace(
-      photoBase64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
-      energyScore: energyScore,
-      mood: mood,
-      detectedBlink: true,
-      method: method,
-      deviceInfo: 'Emulator AI Simulation',
-    );
+    final Map<String, dynamic> result;
+    if (widget.isCheckOut) {
+      result = await _attendanceService.checkOut(
+        photoBase64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+        energyScore: energyScore,
+        mood: mood,
+        detectedBlink: true,
+        method: method,
+        nfcCardId: widget.nfcCardId,
+      );
+    } else {
+      result = await _attendanceService.checkInFace(
+        photoBase64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+        energyScore: energyScore,
+        mood: mood,
+        detectedBlink: true,
+        method: method,
+        deviceInfo: 'Emulator AI Simulation',
+      );
+    }
 
     if (result['success'] == true && mounted) {
       final record = result['record'] as AttendanceRecord;
@@ -309,9 +335,11 @@ class _FaceCheckInScreenState extends State<FaceCheckInScreen>
                 ),
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Chấm Công Thành Công!',
-                style: TextStyle(
+              Text(
+                widget.isCheckOut
+                    ? 'Check-out Ra Về Thành Công!'
+                    : 'Chấm Công Thành Công!',
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -511,7 +539,9 @@ class _FaceCheckInScreenState extends State<FaceCheckInScreen>
         backgroundColor: Colors.transparent,
         elevation: 0,
         title: Text(
-          widget.isDualFactor ? 'Bảo Mật Kép (Face ID)' : 'Chấm Công Khuôn Mặt',
+          widget.isCheckOut
+              ? 'Xác Thực Face ID Ra Về'
+              : (widget.isDualFactor ? 'Bảo Mật Kép (Face ID)' : 'Chấm Công Khuôn Mặt'),
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
         ),
         centerTitle: true,
@@ -719,14 +749,16 @@ class _FaceCheckInScreenState extends State<FaceCheckInScreen>
                                 ),
                               ],
                             )
-                          : const Row(
+                          : Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.camera_alt_rounded, size: 22),
-                                SizedBox(width: 10),
+                                const Icon(Icons.camera_alt_rounded, size: 22),
+                                const SizedBox(width: 10),
                                 Text(
-                                  'Chấm Công Ngay',
-                                  style: TextStyle(
+                                  widget.isCheckOut
+                                      ? 'Xác Nhận Check-out'
+                                      : 'Chấm Công Ngay',
+                                  style: const TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
                                   ),

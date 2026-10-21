@@ -114,7 +114,17 @@ public class AttendanceController : ControllerBase
                 status = true,
                 message = $"Tạm biệt {user.UserName}! Chấm công kết thúc ca thành công qua thẻ NFC.",
                 type = "CHECK_OUT",
-                workedHours = Math.Round(workedHours, 2)
+                workedHours = Math.Round(workedHours, 2),
+                record = new
+                {
+                    existingRecord.Id,
+                    CheckInTime = existingRecord.CheckInTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss"),
+                    CheckOutTime = existingRecord.CheckOutTime.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss"),
+                    existingRecord.Method,
+                    existingRecord.EnergyScore,
+                    existingRecord.MoodLabel
+                },
+                user = new { user.UserName, user.Department }
             });
         }
 
@@ -169,9 +179,20 @@ public class AttendanceController : ControllerBase
         }
 
         record.CheckOutTime = DateTime.UtcNow;
-        if (!string.IsNullOrEmpty(dto?.Notes))
+        if (dto != null)
         {
-            record.Notes = (record.Notes + " | " + dto.Notes).Trim();
+            if (!string.IsNullOrEmpty(dto.Method))
+            {
+                record.Notes = (record.Notes + $" | Check-out via: {dto.Method}").Trim();
+            }
+            if (dto.EnergyScore.HasValue)
+            {
+                record.Notes = (record.Notes + $" | Check-out Energy: {dto.EnergyScore.Value}% ({dto.Mood ?? "Bình thường"})").Trim();
+            }
+            if (!string.IsNullOrEmpty(dto.Notes))
+            {
+                record.Notes = (record.Notes + " | " + dto.Notes).Trim();
+            }
         }
 
         await _context.SaveChangesAsync();
@@ -181,11 +202,14 @@ public class AttendanceController : ControllerBase
         {
             status = true,
             message = $"Chấm công ra về thành công! Tổng thời gian làm việc ca này: {Math.Round(hours, 2)} giờ.",
-            data = new
+            record = new
             {
                 record.Id,
                 CheckInTime = record.CheckInTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss"),
                 CheckOutTime = record.CheckOutTime.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss"),
+                record.Method,
+                record.EnergyScore,
+                record.MoodLabel,
                 TotalHours = Math.Round(hours, 2)
             }
         });

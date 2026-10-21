@@ -22,6 +22,12 @@ public class NfcCheckInDto
 
 public class CheckOutRequestDto
 {
+    public string Method { get; set; } = "FaceID"; // "FaceID", "NFC", "DualFactor", "Manual"
+    public double? EnergyScore { get; set; }
+    public string? Mood { get; set; }
+    public bool DetectedBlink { get; set; } = true;
+    public string? PhotoBase64 { get; set; }
+    public string? NfcCardId { get; set; }
     public string? Notes { get; set; }
 }
 
