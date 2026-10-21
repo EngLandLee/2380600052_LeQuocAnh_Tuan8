@@ -7,6 +7,7 @@ import '../services/attendance_service.dart';
 import '../services/product_service.dart';
 import '../utils/auth_helper.dart';
 import 'face_checkin_screen.dart';
+import 'cccd_onboarding_screen.dart';
 import 'group_video_call_screen.dart';
 import 'login_screen.dart';
 import 'nfc_checkin_screen.dart';
@@ -26,6 +27,7 @@ class _MainScreenState extends State<MainScreen> {
   bool _isLoading = true;
   bool _hasCheckedIn = false;
   bool _hasCheckedOut = false;
+  bool _hasLinkedNfc = true;
   AttendanceRecord? _todayRecord;
   List<AttendanceRecord> _history = [];
   List<Product> _products = [];
@@ -61,6 +63,7 @@ class _MainScreenState extends State<MainScreen> {
     final status = await _attendanceService.getTodayStatus();
     final history = await _attendanceService.getMyHistory(days: 14);
     final products = await _productService.getAll();
+    final profile = await _attendanceService.getMyProfile();
 
     if (mounted) {
       setState(() {
@@ -68,6 +71,7 @@ class _MainScreenState extends State<MainScreen> {
         _hasCheckedIn = status['hasCheckedIn'] as bool? ?? false;
         _hasCheckedOut = status['hasCheckedOut'] as bool? ?? false;
         _todayRecord = status['todayRecord'] as AttendanceRecord?;
+        _hasLinkedNfc = profile?['hasLinkedNfc'] as bool? ?? true;
         _history = history;
         _products = products;
         _isLoading = false;
@@ -317,6 +321,15 @@ class _MainScreenState extends State<MainScreen> {
                       ),
                     ),
 
+                    // Onboarding CCCD Banner for new employee if not linked yet
+                    if (!_hasLinkedNfc)
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                          child: _buildCccdOnboardingBanner(),
+                        ),
+                      ),
+
                     // Today Status Executive Card
                     SliverToBoxAdapter(
                       child: Padding(
@@ -487,6 +500,79 @@ class _MainScreenState extends State<MainScreen> {
                   ],
                 ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildCccdOnboardingBanner() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFD97706), Color(0xFFB45309)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFD97706).withValues(alpha: 0.35),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          )
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.2),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.credit_card_rounded, color: Colors.white, size: 24),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Yêu Cầu Định Danh CCCD',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                const Text(
+                  'Nhân viên mới cần quét chip CCCD để hoàn tất hồ sơ',
+                  style: TextStyle(color: Colors.white70, fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final res = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => CccdOnboardingScreen(initialUsername: _username),
+                ),
+              );
+              if (res == true) _loadDashboardData();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: const Color(0xFF92400E),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              elevation: 0,
+            ),
+            child: const Text('Quét Ngay', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+          ),
+        ],
       ),
     );
   }

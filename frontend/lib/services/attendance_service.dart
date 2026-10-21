@@ -160,6 +160,18 @@ class AttendanceService {
     return null;
   }
 
+  /// Lấy thông tin hồ sơ nhân viên và trạng thái liên kết thẻ CCCD/NFC
+  Future<Map<String, dynamic>?> getMyProfile() async {
+    try {
+      final response = await _client.get('attendance/profile');
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['data'] as Map<String, dynamic>?;
+      }
+    } catch (_) {}
+    return null;
+  }
+
   /// Gán thẻ NFC cho nhân viên (Admin)
   Future<bool> registerNfcCard(String userId, String nfcCardId) async {
     try {
@@ -171,6 +183,22 @@ class AttendanceService {
       return response.statusCode == 200;
     } catch (_) {
       return false;
+    }
+  }
+
+  /// Nhân viên tự liên kết thẻ CCCD của mình lúc mới vào công ty (CCCD Onboarding)
+  Future<Map<String, dynamic>> linkMyCccd(String nfcCardId) async {
+    try {
+      final response = await _client.post('attendance/register-nfc', {
+        'nfcCardId': nfcCardId,
+      });
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'message': data['message'] ?? 'Liên kết thẻ thành công!',
+      };
+    } catch (e) {
+      return {'success': false, 'message': 'Lỗi kết nối: $e'};
     }
   }
 }

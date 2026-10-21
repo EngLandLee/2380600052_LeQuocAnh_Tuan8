@@ -354,10 +354,11 @@ public class AttendanceController : ControllerBase
         var username = GetCurrentUsername();
         var targetUser = await _userManager.FindByNameAsync(username ?? "");
 
-        // Nếu Admin truyền TargetUserId thì gán cho User đó
+        // Nếu Admin truyền TargetUserId thì tìm theo Id hoặc Username
         if (User.IsInRole("Admin") && !string.IsNullOrEmpty(dto.TargetUserId))
         {
-            targetUser = await _userManager.FindByIdAsync(dto.TargetUserId);
+            targetUser = await _userManager.FindByIdAsync(dto.TargetUserId)
+                         ?? await _userManager.FindByNameAsync(dto.TargetUserId);
         }
 
         if (targetUser == null) return NotFound("Không tìm thấy người dùng");
@@ -370,6 +371,31 @@ public class AttendanceController : ControllerBase
         {
             status = true,
             message = $"Đã liên kết thành công thẻ NFC [{cleanCardId}] với tài khoản {targetUser.UserName}."
+        });
+    }
+
+    // 9. Lấy thông tin hồ sơ nhân viên hiện tại (Kiểm tra đã liên kết thẻ CCCD hay chưa)
+    [HttpGet("profile")]
+    public async Task<IActionResult> GetProfile()
+    {
+        var username = GetCurrentUsername();
+        if (string.IsNullOrEmpty(username)) return Unauthorized();
+
+        var user = await _userManager.FindByNameAsync(username);
+        if (user == null) return NotFound("Không tìm thấy người dùng");
+
+        return Ok(new
+        {
+            status = true,
+            data = new
+            {
+                user.Id,
+                user.UserName,
+                user.Email,
+                user.Department,
+                user.NfcCardId,
+                HasLinkedNfc = !string.IsNullOrEmpty(user.NfcCardId)
+            }
         });
     }
 }
