@@ -2,7 +2,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ConfigUrl {
-  static const String defaultCloudflareUrl = "https://ending-fashion-tracy-jon.trycloudflare.com/api/";
+  static const String defaultCloudflareUrl = "https://blocked-betting-adsl-opens.trycloudflare.com/api/";
   static const String defaultLanUrl = "http://192.168.1.14:5000/api/";
 
   static String? _customBaseUrl;
@@ -41,12 +41,15 @@ class ConfigUrl {
       return _customBaseUrl!;
     }
     if (dotenv.isInitialized) {
-      final url = dotenv.env['BASE_URL'];
-      if (url != null &&
-          url.isNotEmpty &&
-          !url.contains('localhost') &&
-          !url.contains('127.0.0.1')) {
-        return url;
+      final raw = dotenv.env['BASE_URL'] ?? dotenv.env['API_BASE_URL'];
+      if (raw != null &&
+          raw.isNotEmpty &&
+          !raw.contains('localhost') &&
+          !raw.contains('127.0.0.1')) {
+        var clean = raw.trim();
+        if (!clean.endsWith('/')) clean = '$clean/';
+        if (!clean.endsWith('api/')) clean = '${clean}api/';
+        return clean;
       }
     }
     // Mặc định kết nối Cloudflare Tunnel (Hoạt động trên cả Wi-Fi và 4G/Internet)
