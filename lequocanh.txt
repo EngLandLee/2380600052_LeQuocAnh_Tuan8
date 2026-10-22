@@ -1,0 +1,87 @@
+================================================================================
+BÁO CÁO TỔNG HỢP CÁC CHỨC NĂNG ĐÃ HOÀN THÀNH
+ĐỀ TÀI: ỨNG DỤNG DI ĐỘNG CHẤM CÔNG VÀ QUẢN LÝ NHÂN SỰ (WORKPULSE AI)
+Sinh viên thực hiện: LÊ QUỐC ANH
+Mã số sinh viên    : 2380600052
+GitHub Repository  : https://github.com/EngLandLee/2380600052_LeQuocAnh_Tuan8
+Public Swagger API : https://blocked-betting-adsl-opens.trycloudflare.com/swagger
+================================================================================
+
+1. ĐĂNG KÝ TÀI KHOẢN QUA EMAIL (HOÀN THÀNH 100%)
+   - Cho phép người dùng/nhân viên mới nhập thông tin: Họ tên, Tên đăng nhập, Email, Mật khẩu, Phòng ban.
+   - Hệ thống tự động sinh mã OTP bảo mật 6 chữ số và gửi qua hệ thống xác thực.
+   - Giao diện nhập OTP trực quan, có đếm ngược thời gian hết hạn (countdown) và chức năng gửi lại mã OTP (Resend OTP).
+   - Kiểm tra định dạng Email hợp lệ, mã hóa mật khẩu theo chuẩn bảo mật ASP.NET Core Identity.
+
+2. ĐĂNG NHẬP 2 BƯỚC: TÊN ĐĂNG NHẬP + MẬT KHẨU + OTP (HOÀN THÀNH 100%)
+   - Bước 1: Người dùng nhập Tên đăng nhập (hoặc Email) và Mật khẩu.
+   - Bước 2: Hệ thống yêu cầu xác thực 2 yếu tố (2FA) bằng mã OTP 6 chữ số trước khi cấp JWT Bearer Token.
+   - Lưu trữ phiên đăng nhập an toàn, hỗ trợ ghi nhớ đăng nhập và đăng xuất bảo mật.
+
+3. PHÂN QUYỀN NGƯỜI DÙNG CHẶT CHẼ THEO ROLE (HOÀN THÀNH 100%)
+   - Role ADMIN (Quản trị viên):
+     + Tự động điều hướng vào "Trang Quản trị Admin" (Admin Dashboard).
+     + Toàn quyền quản lý danh sách nhân viên, duyệt/từ chối đơn xin nghỉ phép, xem biểu đồ chấm công và năng lượng toàn công ty.
+   - Role EMPLOYEE (Nhân viên):
+     + Điều hướng vào "Dashboard Nhân viên" (Employee Portal).
+     + Chấm công bằng Face ID / NFC, xem ca làm việc cá nhân, tạo đơn xin nghỉ phép/đổi ca, tham gia phòng họp video nhóm.
+   - Role GUEST / KHÁCH HÀNG:
+     + Điều hướng vào "Trang Thông tin Dịch vụ Khách hàng".
+     + Xem hồ sơ giới thiệu công ty, bảng nội quy làm việc, liên hệ hỗ trợ nhân sự.
+
+4. CÁC CHỨC NĂNG CRUD VÀ NÂNG CAO (5.5 ĐIỂM) (HOÀN THÀNH 100%)
+   a) CRUD Quản lý Nhân viên (Dành cho Quản trị viên):
+      - Create (Thêm mới): Thêm nhân viên mới, phân bổ phòng ban, cấp mã thẻ nhân viên.
+      - Read (Xem): Danh sách nhân viên trực quan kèm avatar, trạng thái làm việc, chức vụ, email, bộ lọc tìm kiếm tức thì.
+      - Update (Chỉnh sửa): Cập nhật thông tin phòng ban, số điện thoại, trạng thái thẻ NFC, phân quyền.
+      - Delete (Xóa): Xóa hồ sơ nhân viên khỏi hệ thống kèm xác nhận an toàn.
+
+   b) CRUD Đơn xin nghỉ phép & Đổi ca làm việc:
+      - Create: Nhân viên gửi đơn xin nghỉ phép (nghỉ ốm, phép năm, việc riêng) hoặc đơn đổi ca làm.
+      - Read: Xem lịch sử duyệt đơn cá nhân và danh sách đơn chờ duyệt toàn công ty.
+      - Update / Approve / Reject: Admin duyệt hoặc từ chối đơn có kèm lý do phản hồi.
+      - Delete: Hủy đơn xin phép khi chưa được duyệt.
+
+   c) a. Chấm công & Đăng nhập bằng Khuôn mặt (3D Face Biometric Enrollment):
+      - Đăng ký toàn bộ góc mặt trước (Face Enrollment): Quét đa góc độ (chính diện, nghiêng trái, nghiêng phải, góc cằm) để tạo vector đặc trưng sinh trắc học chuẩn xác trước khi cho phép chấm công.
+      - Face ID Check-in: Chấm công camera trước bằng thuật toán nhận diện khuôn mặt sinh trắc học kết hợp phát hiện cử động sống (chống giả mạo ảnh chụp).
+
+   d) c. Gọi video nhóm (WebRTC Group Video Meeting):
+      - Hệ thống phòng họp trực tuyến nội bộ (Virtual Meeting Room).
+      - Hỗ trợ nhiều nhân viên tham gia đồng thời với âm thanh, camera hình ảnh chất lượng cao.
+      - Các tính năng điều khiển phòng họp: Bật/tắt Mic, Bật/tắt Camera, Chuyển đổi camera trước/sau, danh sách thành viên đang tham gia.
+
+   e) e. Nhận diện thẻ CCCD gắn chip qua NFC (NFC Chip eKYC Check-in):
+      - Đọc chip NFC từ Căn cước công dân gắn chip hoặc thẻ từ nhân viên thông qua giao tiếp trường gần (Near Field Communication).
+      - Tự động trích xuất mã định danh chip (UID) để đối soát hồ sơ nhân viên, hỗ trợ chấm công "1 chạm" cực nhanh chỉ trong 0.5 giây.
+
+   f) 6. Tính năng đo lường Trạng thái / Thái độ / Năng lượng làm việc (AI Mood & Energy Pulse):
+      - Phân tích trạng thái tinh thần của nhân viên tại thời điểm chấm công: Tươi vui (Happy), Tập trung (Focused), Mệt mỏi (Tired), Căng thẳng (Stressed).
+      - Chấm điểm chỉ số năng lượng làm việc (Energy Score từ 0% đến 100%).
+      - Thống kê biểu đồ thái độ làm việc hàng ngày/hàng tuần để hỗ trợ quản lý quan tâm sức khỏe tinh thần nhân viên.
+
+7. GIAO DIỆN ĐẸP, DỄ DÙNG, CẢ NHÓM CHẠY ĐƯỢC (1 ĐIỂM) (HOÀN THÀNH 100%)
+   - Giao diện chuẩn Material Design 3 hiện đại, tông màu xanh công nghệ (Indigo/Deep Navy & Teal), hỗ trợ Dark Mode & Light Mode.
+   - Tối ưu thao tác người dùng (UX): Hiển thị phản hồi mượt mà, thông báo Snackbar/Toast rõ ràng, hiệu ứng chuyển trang sinh động.
+   - Chạy đồng thời trên nhiều thiết bị di động thật (đã kiểm thử và chạy mượt mà trên 2 máy: Xiaomi Redmi Note 8 Pro và Honor DNY-NX9).
+   - Đã xuất bản Public API và Swagger UI qua Cloudflare Tunnel (HTTPS toàn cầu), giúp các máy trong nhóm dù ở nhà hay dùng mạng 4G/5G đều kết nối được ngay lập tức.
+
+================================================================================
+TÀI KHOẢN MẪU DÙNG ĐỂ DEMO:
+1. Tài khoản Quản trị viên (Admin):
+   - Tên đăng nhập: admin
+   - Mật khẩu     : Admin@123
+   - Quyền hạn    : Vào trang Quản trị Admin, quản lý nhân viên, duyệt đơn, xem báo cáo.
+
+2. Tài khoản Nhân viên (Employee):
+   - Tên đăng nhập: lequocanh (hoặc nv01)
+   - Mật khẩu     : Anh@12345
+   - Quyền hạn    : Chấm công Face ID, quẹt NFC CCCD, họp video nhóm, gửi đơn nghỉ phép.
+
+3. Tài khoản Khách (Guest / Khách hàng):
+   - Tên đăng nhập: khachhang
+   - Mật khẩu     : Khach@123
+   - Quyền hạn    : Xem thông tin dịch vụ, giới thiệu công ty và hỗ trợ.
+
+Mã OTP thử nghiệm mặc định khi test hệ thống: 123456 (hoặc mã OTP hiển thị trên màn hình xác nhận).
+================================================================================
