@@ -129,7 +129,14 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.UseSwagger();
-app.UseSwaggerUI();
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "WorkPulse API v1");
+    c.RoutePrefix = string.Empty; // Phục vụ Swagger UI ngay tại trang chủ (/)
+});
+
+// Cho phép cả đường dẫn /swagger chuyển hướng về trang chủ Swagger UI
+app.MapGet("/swagger", () => Results.Redirect("/"));
 
 app.UseCors("AllowAll");
 app.UseAuthentication();
